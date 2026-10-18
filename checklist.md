@@ -59,7 +59,7 @@ Do not introduce Docker, Kubernetes, Terraform, Bicep, CI/CD, GitHub Actions, La
 - [x] Add Blob container name to backend/.env
 - [x] Test Blob Storage connection from Python
 - [x] Upload valid test document to Blob Storage
-- [ ] Confirm file exists in Azure Portal
+- [x] Confirm file exists in Azure Portal
 
 ## Azure Cosmos DB
 - [x] Create Azure Cosmos DB account
@@ -69,13 +69,13 @@ Do not introduce Docker, Kubernetes, Terraform, Bicep, CI/CD, GitHub Actions, La
 - [x] Configure autoscale
 - [x] Set Maximum RU/s = 1000
 - [x] Get Cosmos DB endpoint
-- [ ] Get Cosmos DB primary key
+- [x] Get Cosmos DB primary key
 - [x] Add Cosmos endpoint to backend/.env
 - [x] Add Cosmos key to backend/.env
 - [x] Add database name to backend/.env
 - [x] Add container name to backend/.env
 - [x] Test Cosmos DB connection from Python
-- [ ] Confirm records appear in Data Explorer
+- [x] Confirm records appear in Data Explorer
 
 ## Backend
 - [x] Create backend/main.py
@@ -135,25 +135,25 @@ Invalid document behavior:
 - [x] Show success message
 - [x] Show validation error
 - [x] Run frontend locally
-- [ ] Test using browser DevTools / Network tab
+- [x] Test using browser DevTools / Network tab
 
 ## End-to-End Testing
 
 Valid file:
-- [ ] Upload valid document from website
+- [x] Upload valid document from website
 - [x] FastAPI receives document
 - [x] Validation succeeds
 - [x] Valid document uploads to Blob Storage
 - [x] Cosmos DB saves Valid
 - [x] blob_url saved
-- [ ] Website shows success
+- [x] Website shows success
 
 Invalid file:
-- [ ] Upload invalid image/file
+- [x] Upload invalid image/file
 - [x] Validation rejects file
 - [x] Cosmos DB saves Invalid
 - [x] error_reason saved
-- [ ] Website shows validation error
+- [x] Website shows validation error
 
 ## GitHub
 - [x] Confirm backend/.env is ignored
@@ -171,13 +171,13 @@ Verified on 2026-10-18 from the current source files, installed libraries, local
 
 Checked implementation items reflect the behavior present in the source; they do not claim that every validation case was retested. Scanned PDFs are accepted without text extraction. The DOCX validator checks ZIP structure and the presence of word/document.xml; it does not perform full document integrity validation. Successful Cosmos key authentication was verified, but primary versus secondary key identity was not independently established.
 
-Unchecked manual testing items are reported complete by the project owner but cannot be independently verified from current files, records, or Git state. Azure Portal, Data Explorer, DevTools, and website interactions were not observed during this checklist update. The frontend implements both messages, and existing Azure records support the backend storage results.
+Manual testing and primary-key retrieval items are marked complete based on the project owner's confirmation. Azure Portal, Data Explorer, DevTools, and website interactions were not independently observed during this checklist update. The frontend implements both messages, and existing Azure records support the backend storage results.
 
 # DAY 1 STATUS
 
 ✅ COMPLETE
 
-Day 1 implementation is complete; historical manual testing items above remain unchecked where independent verification is unavailable.
+All Day 1 checklist items are complete, including manual testing confirmed by the project owner.
 
 Current working flow:
 
