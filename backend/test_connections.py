@@ -2,6 +2,9 @@ import os
 
 from azure.storage.blob import BlobServiceClient
 from azure.cosmos import CosmosClient
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+from azure.core.rest import HttpRequest
 from dotenv import load_dotenv
 
 
@@ -65,6 +68,37 @@ def test_cosmos_db():
         return False
 
 
+def test_document_intelligence():
+    try:
+        endpoint = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT")
+        key = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_KEY")
+
+        client = DocumentIntelligenceClient(
+            endpoint=endpoint,
+            credential=AzureKeyCredential(key),
+        )
+
+        request = HttpRequest(
+            "GET",
+            f"{endpoint.rstrip('/')}/documentintelligence/info",
+            params={"api-version": "2024-11-30"},
+        )
+
+        response = client.send_request(request)
+        response.raise_for_status()
+
+        print("✅ Document Intelligence connection successful")
+        print(f"   Endpoint: {endpoint}")
+
+        return True
+
+    except Exception as error:
+        print("❌ Document Intelligence connection failed")
+        print(f"   Error: {error}")
+
+        return False
+
+
 if __name__ == "__main__":
     print("\nTesting Azure connections...\n")
 
@@ -74,9 +108,13 @@ if __name__ == "__main__":
 
     cosmos_ok = test_cosmos_db()
 
+    print()
+
+    document_intelligence_ok = test_document_intelligence()
+
     print("\n-----------------------------")
 
-    if blob_ok and cosmos_ok:
+    if blob_ok and cosmos_ok and document_intelligence_ok:
         print("✅ All Azure connections are working")
     else:
         print("❌ One or more Azure connections failed")

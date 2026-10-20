@@ -42,7 +42,7 @@ uploadButton.addEventListener("click", async function () {
 
         const data = await response.json();
 
-        if (data.status === "Valid") {
+        if (data.status === "Valid" || data.status === "Extracted") {
 
             result.textContent =
                 `✅ ${data.message}`;

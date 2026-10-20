@@ -193,36 +193,59 @@ HTML/CSS/JavaScript Website
 
 # DAY 2 — Extraction / OCR
 
-Create later: `backend/extraction_service.py`.
-
 Azure service: Azure Document Intelligence.
 
-- [ ] Create Document Intelligence Azure resource
-- [ ] Add endpoint/key to backend/.env
-- [ ] Create backend/extraction_service.py
-- [ ] Read document from Blob Storage
-- [ ] Extract normal PDF
-- [ ] Extract scanned PDF using OCR
-- [ ] Handle DOCX with the simplest supported approach
-- [ ] Keep text
-- [ ] Keep paragraphs
-- [ ] Keep page number
-- [ ] Keep headings where available
-- [ ] Keep tables where useful
-- [ ] Keep source file name
-- [ ] Keep bounding region/polygon if available
-- [ ] Produce simple structured JSON
-- [ ] Test output manually
+## Completed
+
+- [x] Azure Document Intelligence resource created
+- [x] Endpoint and key added to backend/.env
+- [x] azure-ai-documentintelligence installed
+- [x] requirements.txt updated
+- [x] Document Intelligence connection test added
+- [x] test_extract.py created and tested
+- [x] Valid PDFs extracted successfully
+- [x] Text extraction verified
+- [x] Page count verified
+- [x] Paragraph count verified
+- [x] Table count verified
+- [x] Extraction JSON structure reviewed
+- [x] Extracted JSON saved automatically to extracted-documents Blob container
+- [x] document_id stored
+- [x] file_name stored
+- [x] original_page_count stored
+- [x] extracted_page_count stored
+- [x] extracted_json_url stored
+- [x] status updated in Cosmos DB
+- [x] status becomes Extracted on success
+- [x] status becomes Failed when extraction fails
+- [x] error_reason saved for extraction failure
+- [x] invalid document stops before entering the pipeline
+- [x] valid upload automatically triggers extraction
+- [x] end-to-end Day 2 flow tested successfully from the website
+
+## Additional Completed Items
+
+- [x] Create backend/extraction_service.py
+- [x] Read document from Blob Storage
+- [x] Extract scanned PDF using OCR
+- [x] Handle DOCX with the simplest supported approach
+- [x] Keep page number
+- [x] Keep headings where available
+- [x] Keep bounding region/polygon if available
 
 Definition of Done:
 
 ```text
-Blob Storage
+Valid website upload
+→ Validation
+→ Blob Storage
 → Document Intelligence
-→ structured extracted content
+→ structured extracted JSON saved to extracted-documents
+→ Cosmos DB metadata and status updated to Extracted
 ```
 
-- [ ] Verify extraction/OCR flow
+- [x] Verify extraction flow end to end from the website
+- [x] Verify scanned PDF OCR flow
 
 ---
 

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.validator import validate_document
 from backend.blob_service import upload_to_blob
 from backend.cosmos_service import save_document_result
+from backend.extraction_service import extract_document
 
 
 app = FastAPI()
@@ -15,7 +16,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://127.0.0.1:5500",
-        "http://localhost:5500",
+        "http://localhost:5500"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -48,21 +49,6 @@ async def upload_document(
     )
 
     if not is_valid:
-        record = {
-            "id": document_id,
-            "document_id": document_id,
-            "file_name": file.filename,
-            "status": "Invalid",
-            "error_reason": error_reason,
-            "blob_url": None,
-            "created_at": created_at,
-            "validated_at": datetime.now(
-                timezone.utc
-            ).isoformat()
-        }
-
-        save_document_result(record)
-
         return {
             "document_id": document_id,
             "status": "Invalid",
@@ -89,9 +75,31 @@ async def upload_document(
 
     save_document_result(record)
 
+    try:
+        extraction_metadata = extract_document(
+            file.filename,
+            file_bytes,
+            document_id=document_id,
+            blob_url=blob_url,
+        )
+    except Exception:
+        record.update({
+            "status": "Failed",
+            "error_reason": "Document extraction or saving the extracted JSON failed.",
+        })
+        save_document_result(record)
+        return {
+            "document_id": document_id,
+            "status": "Failed",
+            "message": record["error_reason"],
+            "blob_url": blob_url,
+        }
+
+    record.update(extraction_metadata)
+    record["extracted_at"] = datetime.now(timezone.utc).isoformat()
+    save_document_result(record)
+
     return {
-        "document_id": document_id,
-        "status": "Valid",
-        "message": "File validated and uploaded successfully.",
-        "blob_url": blob_url
+        **extraction_metadata,
+        "message": "File validated, uploaded, and extracted successfully.",
     }
