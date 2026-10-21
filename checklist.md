@@ -251,12 +251,12 @@ Valid website upload
 
 # DAY 3 — Chunking
 
-Create later: `backend/chunking_service.py`.
+Implemented: `backend/chunking_service.py`.
 
 Start simple:
 
-- Chunk size = 256 tokens
-- Overlap = 50 tokens
+- Chunk size = 400 tokens
+- Overlap = 80 tokens
 
 Do not optimize yet.
 
@@ -273,12 +273,29 @@ chunk_index
 
 Keep heading/section/location only if already available.
 
-- [ ] Create backend/chunking_service.py
-- [ ] Generate chunks
-- [ ] Inspect chunks manually
-- [ ] Confirm content is understandable
-- [ ] Confirm page number is preserved
-- [ ] Confirm chunk can be traced back to source document
+- [x] Understood chunking purpose and strategies
+- [x] Selected token-based chunking
+- [x] Text chunk size set to 400 tokens
+- [x] Text overlap set to 80 tokens
+- [x] Preserved useful metadata for citation/highlighting
+- [x] Preserved spans, bounding regions, polygons and section metadata
+- [x] Separated normal text chunks from table chunks
+- [x] Preserved table headers, rows, columns and cell relationships
+- [x] Linked text chunks with related table chunks
+- [x] Verified all non-table text is preserved
+- [x] Verified tables are not duplicated inside text chunks
+- [x] Verified all source tables become table chunks
+- [x] Verified unique chunk IDs and sequential indexes
+- [x] Verified chunk token counts and overlap
+- [x] Verified page/source metadata
+- [x] Verified original extracted JSON remains unchanged
+- [x] Created chunked-documents Blob container
+- [x] Saved chunked JSON to Blob Storage
+- [x] Updated Cosmos DB with chunking metadata/status
+- [x] Connected extraction -> chunking automatically
+- [x] Tested upload -> extraction -> chunking end to end
+- [x] Verified chunked JSON exists in Blob
+- [x] Verified Cosmos status and chunk metadata
 
 Definition of Done:
 
@@ -286,8 +303,6 @@ Definition of Done:
 Extracted content
 → chunks + metadata
 ```
-
-- [ ] Verify chunks and metadata
 
 ---
 
