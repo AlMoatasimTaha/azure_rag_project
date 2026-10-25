@@ -308,22 +308,105 @@ Extracted content
 
 # DAY 4 — Embeddings + Azure AI Search
 
-## Completed
+## Understanding / Design
 
-- [x] Deploy Foundry `text-embedding-3-small` for embeddings
-- [x] Verify embeddings contain 1536 dimensions
-- [x] Create Azure AI Search and the `rag-index` index
-- [x] Create `backend/embedding_service.py` for text/table chunk and question embeddings
-- [x] Create `backend/search_service.py` for index setup, chunk indexing, and vector retrieval
-- [x] Index text and table chunks with vectors and source metadata
+- [x] Understand embeddings
+- [x] Understand vector dimensions
+- [x] Understand similarity / cosine similarity concept
+- [x] Understand Top-K
+- [x] Understand vector vs keyword vs hybrid search
+- [x] Understand Azure AI Search index
+- [x] Decide what gets embedded: chunk content and user questions
+- [x] Decide what stays metadata: document/source, page, section, and table relationships
+- [x] Decide text chunks and table chunks use the same index
+- [x] Decide vectors are stored in Azure AI Search, not Blob
+
+## Azure Setup
+
+- [x] Create Microsoft Foundry resource/project
+- [x] Deploy text-embedding-3-small
+- [x] Confirm embedding dimension = 1536
+- [x] Create Azure AI Search resource
+- [x] Add Foundry configuration to .env
+- [x] Add Azure AI Search configuration to .env
+- [x] Test Azure service connections successfully
+
+Connection test result achieved (project owner confirmed):
+
+```text
+Blob Storage: PASS
+Cosmos DB: PASS
+Document Intelligence: PASS
+Foundry Embedding: PASS
+Embedding dimension: 1536
+Azure AI Search service connection: PASS
+Overall: PASS
+```
+
+## Backend Embedding
+
+- [x] Create backend/embedding_service.py
+- [x] Generate embedding for chunk content
+- [x] Generate embedding for user questions
+- [x] Validate returned vectors
+- [x] Use text-embedding-3-small
+- [x] Use 1536-dimensional vectors
+- [x] Keep embeddings in memory before indexing
+- [x] Do not save embedded output to Blob
+
+## Azure AI Search
+
+- [x] Create backend/search_service.py for index setup, chunk indexing, and vector retrieval
+- [x] Create rag-index automatically from backend Python
+- [x] Configure content_vector with 1536 dimensions
+- [x] Configure vector search / HNSW with cosine similarity
+- [x] Store chunk content + vector + metadata
+- [x] Index text chunks
+- [x] Support table chunks in the same index
 - [x] Preserve document ID, filename, pages, chunk index/type, sections, spans, bounding regions, and table relationships where available
-- [x] Embed questions through `POST /ask`
-- [x] Filter vector retrieval by `document_id` using pre-filtering
-- [x] Test Top-K retrieval successfully; current default is 10
-- [x] Connect frontend upload, streamed processing progress, ready-document selection, and ranked retrieval results
+- [x] Verify rag-index in Azure portal
+- [x] Verify a real indexed chunk in Search Explorer
+
+## Pipeline Integration
+
+- [x] Connect extraction → chunking → embedding → Azure AI Search indexing → Ready
+- [x] Cosmos status flow: Valid → Extracting → Chunking → Embedding → Indexing → Ready
+- [x] Failure flow: any failed processing stage → Failed → error_reason
+
+## Retrieval
+
+- [x] Add question retrieval endpoint: POST /ask
+- [x] Embed user question using the same embedding model
+- [x] Filter by document_id using pre-filtering
+- [x] Perform vector search
+- [x] Use Top-K retrieval
+- [x] Test Top-K successfully
+- [x] Confirm retrieved chunks are ranked by relevance
+- [x] Confirm correct sections rank first in real tests
+
+Current testing setting:
+
+- Top-K = 10 for testing
+- Return up to 10 chunks
+- If document has fewer chunks, return only available chunks
+
+## Frontend
+
+- [x] Upload flow works
+- [x] Full processing flow works
+- [x] Frontend progress/status works
+- [x] Question input works
+- [x] Retrieved passages displayed
+- [x] Multiple returned chunks can be displayed
 - [x] Add document listing and deletion with related Search/Blob/Cosmos cleanup
-- [x] Remove extracted/chunked JSON Blob dependency: pass extraction, chunks, and embeddings directly in memory
-- [x] Store only original documents in Blob, metadata/status in Cosmos, and searchable chunks/vectors in Azure AI Search
+
+## Storage Cleanup
+
+- [x] Remove runtime dependency on extracted-documents Blob container
+- [x] Remove runtime dependency on chunked-documents Blob container
+- [x] Keep original document in Blob
+- [x] Keep extracted_data, chunked_data, embedded_data in backend memory between stages
+- [x] Keep permanent searchable chunks/vectors in Azure AI Search
 
 ## Implemented Index Fields
 
@@ -346,7 +429,11 @@ cells and table metadata where available
 
 ## Verification Notes
 
-Verified on 2026-10-25 against the source and existing tests:
+This checklist update inspected the current implementation. Understanding/design, Azure setup, Portal/Search Explorer checks, and real retrieval/website results are recorded from the project owner's completion report; those manual and live Azure checks were not repeated during this update.
+
+During this update, frontend regression checks passed again. A fresh backend test run was stopped after it stalled; it did not complete, so the earlier backend pass below is historical evidence.
+
+Existing verification record dated 2026-10-25:
 
 - 54 offline backend tests passed for Search indexing, document-filtered Top-K retrieval, upload orchestration, in-memory processing, and document cleanup.
 - Frontend regression checks passed for streamed upload, progress stages, retrieval counts/ranking, document selection/deletion, and theme persistence.
@@ -379,6 +466,16 @@ Definition of Done:
 - [x] A test question returns relevant chunks from the selected document
 
 `POST /ask` currently returns retrieved chunks. LLM-generated grounded answers remain Day 5 work.
+
+Day 4 Status: COMPLETE
+
+Next:
+Day 5 — LLM Answer Generation
+
+- [ ] Use retrieved chunks as context
+- [ ] Send question + retrieved context to LLM
+- [ ] Generate final grounded answer
+- [ ] Add citations/source references
 
 ---
 
