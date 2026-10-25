@@ -308,45 +308,77 @@ Extracted content
 
 # DAY 4 — Embeddings + Azure AI Search
 
-Create later:
+## Completed
 
-- `backend/embedding_service.py`
-- `backend/search_service.py`
+- [x] Deploy Foundry `text-embedding-3-small` for embeddings
+- [x] Verify embeddings contain 1536 dimensions
+- [x] Create Azure AI Search and the `rag-index` index
+- [x] Create `backend/embedding_service.py` for text/table chunk and question embeddings
+- [x] Create `backend/search_service.py` for index setup, chunk indexing, and vector retrieval
+- [x] Index text and table chunks with vectors and source metadata
+- [x] Preserve document ID, filename, pages, chunk index/type, sections, spans, bounding regions, and table relationships where available
+- [x] Embed questions through `POST /ask`
+- [x] Filter vector retrieval by `document_id` using pre-filtering
+- [x] Test Top-K retrieval successfully; current default is 10
+- [x] Connect frontend upload, streamed processing progress, ready-document selection, and ranked retrieval results
+- [x] Add document listing and deletion with related Search/Blob/Cosmos cleanup
+- [x] Remove extracted/chunked JSON Blob dependency: pass extraction, chunks, and embeddings directly in memory
+- [x] Store only original documents in Blob, metadata/status in Cosmos, and searchable chunks/vectors in Azure AI Search
 
-Tasks:
+## Implemented Index Fields
 
-- [ ] Create Azure OpenAI embedding deployment
-- [ ] Create Azure AI Search
-- [ ] Create backend/embedding_service.py
-- [ ] Create backend/search_service.py
-- [ ] Create simple search index
-- [ ] Generate embeddings
-- [ ] Upload chunks/vectors
-- [ ] Store metadata
-
-Initial index fields:
+The index uses `chunk_id` as its key and `content_vector` for vectors (rather than the earlier planned `id` / `contentVector` names).
 
 ```text
-id
+chunk_id
 content
-contentVector
-document_id
+content_vector (1536 dimensions, HNSW/cosine)
+document_id (filterable)
 file_name
-page_number
-chunk_index
+page_number / page_numbers
+chunk_index / chunk_type
+section_heading
+source_blob_url
+spans / bounding_regions
+related_table_ids / related_text_chunk_ids
+cells and table metadata where available
 ```
 
-Test:
+## Verification Notes
+
+Verified on 2026-10-25 against the source and existing tests:
+
+- 54 offline backend tests passed for Search indexing, document-filtered Top-K retrieval, upload orchestration, in-memory processing, and document cleanup.
+- Frontend regression checks passed for streamed upload, progress stages, retrieval counts/ranking, document selection/deletion, and theme persistence.
+- Azure connection checks passed for Blob Storage, Cosmos DB, Document Intelligence, Foundry embeddings (1536 dimensions), and the existing `rag-index`.
+- Successful real-question retrieval quality and website testing were confirmed by the project owner in the prior project conversation; those manual quality checks were not repeated during this checklist update.
+
+The Day 2/3 Blob checkpoint items above describe the earlier completed implementation. Day 4 supersedes those intermediate saves; the current processing path does not read, save, or require extracted/chunked Blob JSON. This does not claim the old Azure containers or historical blobs were deleted. A legacy nullable `extracted_json_url` schema field remains for compatibility, but new indexed chunks omit it.
+
+# DAY 4 STATUS
+
+✅ COMPLETE
+
+Current working flow:
 
 ```text
-Question
-→ embedding/search
-→ relevant chunks
+Website upload + progress
+→ Validation → Original document in Blob
+→ Document Intelligence extraction in memory
+→ Text/table chunks in memory
+→ Foundry embeddings (1536 dimensions)
+→ rag-index chunks + vectors + metadata
+→ Cosmos status Ready
+→ Website question → question embedding
+→ document_id-filtered Top-K vector retrieval
+→ Ranked chunks shown in the website
 ```
 
 Definition of Done:
 
-- [ ] A test question returns the correct relevant chunks
+- [x] A test question returns relevant chunks from the selected document
+
+`POST /ask` currently returns retrieved chunks. LLM-generated grounded answers remain Day 5 work.
 
 ---
 

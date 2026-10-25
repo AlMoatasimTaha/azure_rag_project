@@ -1,45 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>RAG Document Upload</title>
-
-    <link rel="stylesheet" href="style.css">
+    <title>QDS | Document workspace</title>
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
-
 <body>
-
-    <div class="container">
-
-        <h1>RAG Document Upload</h1>
-
-        <p>
-            Upload a PDF or DOCX document.
-        </p>
-
-        <p>
-            Maximum file size: 10 MB
-        </p>
-
-        <input
-            type="file"
-            id="fileInput"
-            accept=".pdf,.docx"
-        >
-
-        <p id="selectedFile"></p>
-
-        <button id="uploadButton">
-            Upload
-        </button>
-
-        <p id="result"></p>
-
+    <header class="topbar">
+        <a class="brand" href="./" aria-label="QDS document workspace">
+            <span class="logo-surface"><img src="images/qds-logo.png?v=2" alt="QDS" width="132" height="57"></span>
+            <span class="brand-caption">Document workspace</span>
+        </a>
+        <label class="theme-control" for="themeSelect">Theme
+            <select id="themeSelect">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="auto" selected>Auto</option>
+            </select>
+        </label>
+    </header>
+    <div class="workspace">
+        <aside class="sidebar" aria-labelledby="documentsHeading">
+            <div class="sidebar-heading">
+                <h2 id="documentsHeading">Documents</h2>
+                <button id="refreshDocuments" class="quiet" type="button">Refresh</button>
+            </div>
+            <p class="hint">Select a ready document to ask a question.</p>
+            <p id="documentsStatus" role="status" aria-live="polite"></p>
+            <ul id="documentList" class="document-list"></ul>
+        </aside>
+        <main class="main-content">
+            <div class="page-heading">
+                <p class="eyebrow">QDS KNOWLEDGE WORKSPACE</p>
+                <h1>Your documents, ready to explore.</h1>
+                <p class="intro">Upload a document, follow its progress, and find relevant passages.</p>
+            </div>
+            <section class="card" aria-labelledby="uploadHeading">
+                <h2 id="uploadHeading">Upload a document</h2>
+                <p class="hint">PDF or DOCX · Maximum file size: 10 MB</p>
+                <label class="file-label" for="fileInput">Choose your document</label>
+                <input type="file" id="fileInput" accept=".pdf,.docx">
+                <p id="selectedFile" class="hint"></p>
+                <button id="uploadButton" type="button">Upload</button>
+                <div id="processingProgress" class="progress-panel" hidden>
+                    <div class="progress-heading">
+                        <span id="currentStage" role="status" aria-live="polite">Upload</span>
+                        <span id="progressPercent">15%</span>
+                    </div>
+                    <progress id="uploadProgress" max="100" value="15" aria-label="Document processing" aria-describedby="currentStage">15%</progress>
+                </div>
+                <p id="result" role="status" aria-live="polite"></p>
+            </section>
+            <section id="questionPanel" class="card" hidden>
+                <form id="questionForm">
+                    <h2>Find relevant passages</h2>
+                    <p id="activeDocument" class="hint"></p>
+                    <label for="questionInput">Question about this document</label>
+                    <textarea id="questionInput" rows="3" placeholder="What would you like to find?" required></textarea>
+                    <button id="askButton" type="submit">Ask</button>
+                    <p id="retrievalStatus" role="status" aria-live="polite"></p>
+                    <ol id="retrievalResults" class="retrieval-results"></ol>
+                </form>
+            </section>
+        </main>
     </div>
-
-    <script src="app.js?v=2"></script>
-
+    <script src="app.js?v=6"></script>
 </body>
 </html>

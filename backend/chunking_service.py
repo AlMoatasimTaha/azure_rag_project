@@ -1,4 +1,4 @@
-"""Standalone chunking for the JSON envelope written by extraction_service.
+"""In-memory chunking for the extraction_service result envelope.
 
 Offsets in output spans use Azure's original stringIndexType. Bounding polygons
 describe source elements, not an estimated crop around individual tokens.
@@ -7,14 +7,8 @@ describe source elements, not an estimated crop around individual tokens.
 from bisect import bisect_left
 from copy import deepcopy
 from functools import lru_cache
-import json
-import os
-from pathlib import PurePosixPath
 from uuid import uuid4
 
-from azure.core.exceptions import ResourceExistsError
-from azure.storage.blob import BlobServiceClient, ContentSettings
-from dotenv import load_dotenv
 import regex
 import tiktoken
 
@@ -278,7 +272,6 @@ def chunk_document(extracted_json: dict) -> dict:
         "document_id": extracted_json.get("document_id"),
         "file_name": extracted_json.get("file_name"),
         "source_blob_url": extracted_json.get("blob_url"),
-        "extracted_json_url": extracted_json.get("extracted_json_url"),
         "string_index_type": index_type,
     }
     seen_pages = set()
@@ -377,35 +370,3 @@ def chunk_document(extracted_json: dict) -> dict:
         "chunking": {"text_chunk_size": 400, "text_overlap": 80},
         "text_chunks": text_chunks, "table_chunks": table_chunks,
     }
-
-
-def save_chunked_json(chunked_document: dict) -> str:
-    """Explicitly save chunk_document's output to chunked-documents; return its URL.
-
-    Uses the same connection string and container-creation approach as extraction.
-    chunk_document stays pure; the upload handler explicitly calls this function.
-    """
-    file_name = chunked_document.get("file_name")
-    if not isinstance(file_name, str) or not file_name.strip():
-        raise ValueError("Chunked output must include the original file_name")
-    json_name = str(PurePosixPath(file_name).with_suffix(".json"))
-    payload = json.dumps(chunked_document, ensure_ascii=False, indent=2).encode("utf-8")
-
-    load_dotenv("backend/.env")
-    connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-    if not connection_string:
-        raise ValueError("AZURE_STORAGE_CONNECTION_STRING is not configured")
-
-    blob_service = BlobServiceClient.from_connection_string(connection_string)
-    container = blob_service.get_container_client("chunked-documents")
-    try:
-        container.create_container()
-    except ResourceExistsError:
-        pass
-    blob = container.get_blob_client(json_name)
-    blob.upload_blob(
-        payload,
-        overwrite=True,
-        content_settings=ContentSettings(content_type="application/json"),
-    )
-    return blob.url

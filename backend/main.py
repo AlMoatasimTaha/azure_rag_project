@@ -1,17 +1,25 @@
 from datetime import datetime, timezone
 import json
+import logging
 import uuid
 
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from backend.validator import validate_document
 from backend.blob_service import upload_to_blob
 from backend.cosmos_service import save_document_result
 from backend.extraction_service import extract_document
-from backend.chunking_service import chunk_document, save_chunked_json
+from backend.chunking_service import chunk_document
+from backend.embedding_service import embed_chunks, generate_embedding
+from backend.search_service import index_chunks, search_chunks, RETRIEVAL_TOP_K
+from backend.document_service import list_documents, delete_document
 
+
+logger = logging.getLogger("uvicorn.error.pipeline")
 
 app = FastAPI()
 
@@ -32,6 +40,26 @@ def root():
     return {
         "message": "RAG backend is running"
     }
+
+
+@app.get("/documents")
+def get_documents():
+    try:
+        return list_documents()
+    except Exception as error:
+        logger.error("Document list failed; error_type=%s", type(error).__name__)
+        raise HTTPException(status_code=502, detail="Could not load documents. Check backend storage connectivity.") from None
+
+
+@app.delete("/documents/{document_id}")
+def remove_document(document_id: str):
+    try:
+        return delete_document(document_id)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Document cannot be deleted while processing or its stored Blob paths are invalid.") from None
+    except Exception as error:
+        logger.error("Document deletion failed; document_id=%r; error_type=%s", document_id, type(error).__name__)
+        raise HTTPException(status_code=502, detail="Cleanup could not finish. Retry Delete; metadata is kept until cleanup succeeds.") from None
 
 
 @app.post("/upload")
@@ -58,122 +86,148 @@ async def upload_document(
             media_type="application/x-ndjson",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
-    for update in _process_document(file.filename, file_bytes):
-        final_result = update
-    return final_result
+    def process():
+        for update in _process_document(file.filename, file_bytes):
+            final_result = update
+        return final_result
+
+    return await run_in_threadpool(process)
+
+
+class AskRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    question: str = Field(min_length=1, strict=True)
+    document_id: str = Field(min_length=1, strict=True)
+
+
+@app.post("/ask")
+def ask_question(request: AskRequest):
+    """Retrieve relevant chunks only; no language model or answer generation."""
+    logger.info("Question received")
+    stage = "Question embedding"
+    try:
+        question_vector = generate_embedding(request.question)
+        logger.info("Question embedding generated")
+        logger.info("Vector dimension: %d", len(question_vector))
+        stage = "Vector search"
+        # Log the ID with escaped control characters; never log question text/vectors.
+        logger.info("Searching document: %r", request.document_id)
+        logger.info("Top-K: %d", RETRIEVAL_TOP_K)
+        results = search_chunks(question_vector, request.document_id, top_k=RETRIEVAL_TOP_K)
+        logger.info("Retrieved %d chunks", len(results))
+    except Exception as error:
+        logger.error("Retrieval failed; stage=%s; error_type=%s", stage, type(error).__name__)
+        raise HTTPException(status_code=502, detail=f"{stage} failed. Check backend configuration and service availability.") from None
+    return {
+        "question": request.question, "document_id": request.document_id,
+        "top_k": RETRIEVAL_TOP_K, "count": len(results), "results": results,
+    }
 
 
 def _process_document(file_name: str, file_bytes: bytes):
-    """Run one upload; yield real stage changes and the final result."""
+    """Pass stage results directly in memory; persist only metadata to Cosmos."""
     document_id = str(uuid.uuid4())
-
-    created_at = datetime.now(
-        timezone.utc
-    ).isoformat()
-
-    is_valid, error_reason = validate_document(
-        file_name,
-        file_bytes
-    )
-
-    if not is_valid:
-        yield {
-            "document_id": document_id,
-            "status": "Invalid",
-            "message": error_reason
-        }
-        return
-
-    blob_url = upload_to_blob(
-        file_name,
-        file_bytes
-    )
-
     record = {
-        "id": document_id,
-        "document_id": document_id,
-        "file_name": file_name,
-        "status": "Extracting",
-        "error_reason": None,
-        "blob_url": blob_url,
-        "created_at": created_at,
-        "validated_at": datetime.now(
-            timezone.utc
-        ).isoformat()
+        "id": document_id, "document_id": document_id, "file_name": file_name,
+        "status": "Valid", "error_reason": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    stage = "Validation"
+    operation = "Document validation"
 
-    save_document_result(record)
-    yield {"document_id": document_id, "status": "Extracting", "message": "Extracting document..."}
+    def transition(status):
+        record["status"] = status
+        save_document_result(record)
+        return {"document_id": document_id, "status": status,
+                "message": f"Document {status}"}
 
     try:
-        extracted_document = extract_document(
-            file_name,
-            file_bytes,
-            document_id=document_id,
-            blob_url=blob_url,
-            include_extraction_result=True,
+        is_valid, error_reason = validate_document(file_name, file_bytes)
+        if not is_valid:
+            yield {"document_id": document_id, "status": "Invalid", "message": error_reason}
+            return
+        record["validated_at"] = datetime.now(timezone.utc).isoformat()
+        operation = "Saving Valid status to Cosmos"
+        transition("Valid")
+
+        stage, operation = "Upload", "Uploading original document"
+        record["blob_url"] = upload_to_blob(file_name, file_bytes)
+        logger.info("Document uploaded; document_id=%s", document_id)
+
+        stage, operation = "Extraction", "Saving Extracting status to Cosmos"
+        yield transition("Extracting")
+        operation = "Document extraction"
+        logger.info("Extraction started; document_id=%s", document_id)
+        extracted_data = extract_document(
+            file_name, file_bytes, document_id=document_id,
+            blob_url=record["blob_url"], include_extraction_result=True,
         )
-    except Exception:
+        record.update({key: value for key, value in extracted_data.items()
+                       if key not in ("extraction_result", "status", "error_reason")})
+        record["extracted_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info("Extraction completed in memory; document_id=%s", document_id)
+
+        stage, operation = "Chunking", "Saving Chunking status to Cosmos"
+        yield transition("Chunking")
+        operation = "Creating text and table chunks"
+        logger.info("Chunking started; document_id=%s", document_id)
+        chunked_data = chunk_document(extracted_data)
         record.update({
-            "status": "Failed",
-            "error_reason": "Document extraction or saving the extracted JSON failed.",
-        })
-        save_document_result(record)
-        yield {
-            "document_id": document_id,
-            "status": "Failed",
-            "message": record["error_reason"],
-            "blob_url": blob_url,
-        }
-        return
-
-    # Keep the full extraction in memory/Blob, not in the Cosmos metadata record.
-    extraction_metadata = {
-        key: value for key, value in extracted_document.items()
-        if key != "extraction_result"
-    }
-    record.update(extraction_metadata)
-    record["extracted_at"] = datetime.now(timezone.utc).isoformat()
-    record["status"] = "Chunking"
-    save_document_result(record)
-    yield {"document_id": document_id, "status": "Chunking", "message": "Creating and saving chunks..."}
-
-    stage = "Creating text and table chunks"
-    try:
-        chunked_document = chunk_document(extracted_document)
-        stage = "Saving chunked JSON to Blob Storage"
-        chunked_json_url = save_chunked_json(chunked_document)
-        chunking_metadata = {
-            "status": "Chunked",
-            "error_reason": None,
-            "chunked_json_url": chunked_json_url,
-            "text_chunk_count": len(chunked_document["text_chunks"]),
-            "table_chunk_count": len(chunked_document["table_chunks"]),
-            "chunk_size": chunked_document["chunking"]["text_chunk_size"],
-            "chunk_overlap": chunked_document["chunking"]["text_overlap"],
+            "text_chunk_count": len(chunked_data["text_chunks"]),
+            "table_chunk_count": len(chunked_data["table_chunks"]),
+            "chunk_size": chunked_data["chunking"]["text_chunk_size"],
+            "chunk_overlap": chunked_data["chunking"]["text_overlap"],
             "chunked_at": datetime.now(timezone.utc).isoformat(),
-        }
-    except Exception as error:
-        # ValueError messages from chunking explain missing spans/configuration.
-        # Avoid returning raw Azure errors, which can include connection details.
-        detail = f": {error}" if isinstance(error, ValueError) else ""
-        record.update({
-            "status": "Failed",
-            "error_reason": f"{stage} failed ({type(error).__name__}){detail}.",
         })
-        save_document_result(record)
-        yield {
-            **extraction_metadata,
-            "status": "Failed",
-            "error_reason": record["error_reason"],
-            "message": record["error_reason"],
-        }
-        return
+        total_chunks = record["text_chunk_count"] + record["table_chunk_count"]
+        if not total_chunks:
+            raise ValueError("No text or table chunks were produced")
+        logger.info("Chunking completed in memory; document_id=%s; chunks=%d", document_id, total_chunks)
 
-    record.update(chunking_metadata)
-    save_document_result(record)
-    yield {
-        **extraction_metadata,
-        **chunking_metadata,
-        "message": "File validated, uploaded, extracted, and chunked successfully.",
-    }
+        stage, operation = "Embedding", "Saving Embedding status to Cosmos"
+        yield transition("Embedding")
+        operation = "Generating embeddings"
+        logger.info("Embedding started; document_id=%s", document_id)
+        # Neither this object nor its vectors go to Blob, Cosmos, or responses.
+        embedded_data = embed_chunks(chunked_data)
+        record["embedded_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info("Embedding completed in memory; document_id=%s", document_id)
+
+        stage, operation = "Indexing", "Saving Indexing status to Cosmos"
+        yield transition("Indexing")
+        operation = "Indexing chunks in Azure AI Search"
+        logger.info("Indexing started; document_id=%s", document_id)
+        # The production function ensures the index and checks every upload result.
+        results = index_chunks(embedded_data)
+        if len(results) != total_chunks or any(not result.succeeded for result in results):
+            raise RuntimeError("Search did not confirm all chunks; some chunks may already be indexed")
+        record["indexed_chunk_count"] = len(results)
+        record["indexed_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info("Indexed %d chunks; document_id=%s", len(results), document_id)
+
+        operation = "Saving Ready status to Cosmos"
+        transition("Ready")
+        logger.info("Document Ready; document_id=%s", document_id)
+        yield {**record, "message": "File validated, uploaded, extracted, chunked, embedded, and indexed successfully."}
+    except Exception as error:
+        # Production processing services sanitize their validation/API errors.
+        # Storage/SDK failures must never expose raw response data or credentials.
+        detail = (f": {error}" if operation in (
+            "Creating text and table chunks", "Generating embeddings",
+            "Indexing chunks in Azure AI Search",
+        ) and isinstance(error, (ValueError, TypeError, RuntimeError)) else "")
+        record.update({
+            "status": "Failed", "failed_stage": stage,
+            "error_reason": f"{operation} failed ({type(error).__name__}){detail}.",
+        })
+        logger.error("Document failed; document_id=%s; stage=%s; error_type=%s",
+                     document_id, stage, type(error).__name__)
+        try:
+            save_document_result(record)
+        except Exception as persistence_error:
+            # Cosmos itself can be unavailable: return Failed and keep the server alive.
+            record["status_persistence_error"] = "Could not save Failed status to Cosmos"
+            logger.error("Failed status could not be saved; document_id=%s; error_type=%s",
+                         document_id, type(persistence_error).__name__)
+        yield {**record, "message": record["error_reason"]}
