@@ -253,14 +253,14 @@ Valid website upload
 
 Implemented: `backend/chunking_service.py`.
 
-Start simple:
+Earlier completed baseline (history; superseded by the strategy below):
 
 - Chunk size = 400 tokens
 - Overlap = 80 tokens
 
-Do not optimize yet.
+The previous token-first approach was improved to structure-aware / semantic chunking. Token size is now a secondary safety limit, not the primary grouping strategy.
 
-Each chunk should keep:
+Existing chunk metadata retained:
 
 ```text
 chunk_id
@@ -271,7 +271,9 @@ page_number
 chunk_index
 ```
 
-Keep heading/section/location only if already available.
+Preserve meaningful heading/section/location context where available.
+
+## Previous Completed Work
 
 - [x] Understood chunking purpose and strategies
 - [x] Selected token-based chunking
@@ -297,16 +299,43 @@ Keep heading/section/location only if already available.
 - [x] Verified chunked JSON exists in Blob
 - [x] Verified Cosmos status and chunk metadata
 
+## Current Completed Strategy
+
+- [x] Improved the previous token-first approach to structure-aware / semantic chunking
+- [x] Use document headings and sections to identify context and group related content
+- [x] Keep content from the same section together when appropriate
+- [x] Divide large sections when necessary instead of blindly splitting the whole document by token count
+- [x] Use token size as a secondary constraint/safety limit
+- [x] Add contextual enrichment for better embedding and retrieval
+- [x] Preserve meaningful document structure/context where available
+- [x] Handle tables with their relevant section/context
+- [x] Handle repeated headers, footers, page numbers, and unnecessary page noise so they do not pollute chunk content
+- [x] Preserve existing useful chunk metadata and JSON structure
+- [x] Support saving chunking JSON to the Azure Blob Storage container: `chunking-documents`
+- [x] Keep the implementation generic for different user-uploaded PDF/DOCX documents, without hardcoding test documents
+- [x] Test the updated approach with documents containing different layouts and structures
+
+The current strategy and testing are marked complete based on the project owner's confirmation. The earlier `chunked-documents` checkpoint work above remains as history; the current chunking JSON save capability uses `chunking-documents`.
+
 Definition of Done:
 
 ```text
-Extracted content
-→ chunks + metadata
+Document structure
+→ identify section/context
+→ group related content
+→ contextual enrichment
+→ split when necessary
+→ token limit as secondary constraint
+→ final chunk
 ```
+
+Day 3 — Chunking: COMPLETE
 
 ---
 
 # DAY 4 — Embeddings + Azure AI Search
+
+The embedding/indexing pipeline now receives the improved, contextually enriched chunks produced by the updated chunking stage.
 
 ## Understanding / Design
 

@@ -2,11 +2,13 @@ from datetime import datetime, timezone
 import json
 import logging
 import uuid
+from urllib.parse import quote
 
+from azure.core.exceptions import ResourceNotFoundError
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from backend.validator import validate_document
@@ -16,7 +18,7 @@ from backend.extraction_service import extract_document
 from backend.chunking_service import chunk_document
 from backend.embedding_service import embed_chunks, generate_embedding
 from backend.search_service import index_chunks, search_chunks, RETRIEVAL_TOP_K
-from backend.document_service import list_documents, delete_document
+from backend.document_service import list_documents, delete_document, view_document
 
 
 logger = logging.getLogger("uvicorn.error.pipeline")
@@ -43,12 +45,38 @@ def root():
 
 
 @app.get("/documents")
-def get_documents():
+def get_documents(response: Response):
+    response.headers["Cache-Control"] = "no-store"
     try:
         return list_documents()
     except Exception as error:
         logger.error("Document list failed; error_type=%s", type(error).__name__)
         raise HTTPException(status_code=502, detail="Could not load documents. Check backend storage connectivity.") from None
+
+
+@app.get("/documents/{document_id}/view")
+def get_document_view(document_id: str):
+    try:
+        original = view_document(document_id)
+    except ResourceNotFoundError:
+        original = None
+    except (ValueError, KeyError):
+        raise HTTPException(status_code=404, detail="Original document is unavailable.") from None
+    except Exception as error:
+        logger.error("Document view failed; document_id=%r; error_type=%s", document_id, type(error).__name__)
+        raise HTTPException(status_code=502, detail="Could not open document. Check backend storage connectivity.") from None
+    if original is None:
+        raise HTTPException(status_code=404, detail="Original document is unavailable.")
+    content, file_name = original
+    media_type = {
+        "pdf": "application/pdf",
+        "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }.get(file_name.rpartition(".")[2].lower(), "application/octet-stream")
+    return Response(content=content, media_type=media_type, headers={
+        "Content-Disposition": f"inline; filename*=UTF-8''{quote(file_name, safe='')}",
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    })
 
 
 @app.delete("/documents/{document_id}")

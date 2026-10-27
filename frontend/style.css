@@ -52,7 +52,12 @@ h2 { font-size: 18px; margin-bottom: 12px; }
 .document-select { flex: 1; min-width: 0; text-align: left; background: transparent; color: var(--text); padding: 2px; font-weight: 500; overflow-wrap: anywhere; }
 .document-select span { display: block; }
 .document-select .document-status { color: var(--muted); font-size: 12px; margin-top: 3px; font-weight: 400; }
-.delete-button { color: var(--error); background: var(--error-bg); padding: 5px 8px; font-size: 12px; }
+.document-actions { display: flex; flex-shrink: 0; gap: 7px; }
+.document-action { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border-radius: 8px; text-decoration: none; }
+.document-action span, .document-action svg { display: block; }
+.view-button { color: var(--blue); background: var(--soft); }
+.view-button:hover { filter: brightness(1.08); }
+.delete-button { color: var(--error); background: var(--error-bg); }
 #documentsStatus { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .main-content { width: 100%; max-width: 1000px; margin: 0 auto; padding: 42px 48px; }
 .page-heading { margin-bottom: 30px; }

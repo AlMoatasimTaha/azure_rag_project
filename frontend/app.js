@@ -79,6 +79,16 @@ function selectDocument(item) {
     renderDocuments();
 }
 
+function documentIcon(kind) {
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    const paths = kind === "view"
+        ? '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'
+        : '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>';
+    icon.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">${paths}</svg>`;
+    return icon;
+}
+
 function renderDocuments() {
     documentList.replaceChildren();
     for (const item of documents) {
@@ -96,14 +106,29 @@ function renderDocuments() {
         status.textContent = item.status || "Unknown status";
         select.append(name, status);
         select.addEventListener("click", () => selectDocument(item));
+        const actions = document.createElement("div");
+        actions.className = "document-actions";
+        actions.setAttribute("role", "group");
+        actions.setAttribute("aria-label", "Document actions");
+        const view = document.createElement("a");
+        view.className = "document-action view-button";
+        view.href = `${API_URL}/documents/${encodeURIComponent(item.document_id)}/view`;
+        view.target = "_blank";
+        view.rel = "noopener noreferrer";
+        view.title = "View document";
+        view.setAttribute("aria-label", `View document: ${item.file_name || "Untitled document"} (opens in a new tab)`);
+        view.append(documentIcon("view"));
         const remove = document.createElement("button");
         remove.type = "button";
-        remove.className = "delete-button";
-        remove.textContent = deletingDocumentId === item.document_id ? "Deleting…" : "Delete";
+        remove.className = "document-action delete-button";
+        remove.append(documentIcon("trash"));
+        remove.title = "Delete document";
+        remove.setAttribute("aria-busy", String(deletingDocumentId === item.document_id));
         remove.setAttribute("aria-label", `Delete ${item.file_name || "document"}`);
         remove.disabled = uploadInProgress || !!deletingDocumentId || processingStatuses.has(item.status);
         remove.addEventListener("click", () => deleteDocument(item));
-        row.append(select, remove);
+        actions.append(view, remove);
+        row.append(select, actions);
         documentList.append(row);
     }
 }
@@ -113,7 +138,7 @@ async function loadDocuments() {
     refreshDocuments.disabled = true;
     documentsStatus.textContent = "Loading documents…";
     try {
-        const response = await fetch(`${API_URL}/documents`);
+        const response = await fetch(`${API_URL}/documents`, { cache: "no-store" });
         const data = await response.json();
         if (version !== listVersion) return;
         if (!response.ok || !Array.isArray(data)) throw new Error(typeof data.detail === "string" ? data.detail : "Could not load documents.");

@@ -43,15 +43,33 @@ async function createUi(storedTheme = "auto") {
     });
     vm.runInContext(source, context);
     await new Promise(resolve => setImmediate(resolve));
-    return {element, context, document, calls, storage, setResponse: value => response = value};
+    return {element, context, document, calls, storage, setResponse: value => response = value,
+        setRecords: value => records = value};
 }
 
 (async () => {
     const ui = await createUi("dark");
     const {element, context} = ui;
     assert.ok(ui.calls[0].url.endsWith("/documents"));
+    assert.equal(ui.calls[0].options.cache, "no-store");
     assert.equal(element("documentList").children.length, 2);
-    assert.equal(element("documentList").children[1].children[1].disabled, true);
+    assert.equal(element("documentList").children[1].children[1].children[1].disabled, true);
+    const actions = element("documentList").children[0].children[1];
+    assert.equal(actions.className, "document-actions");
+    assert.equal(actions.children.length, 2);
+    const view = actions.children[0];
+    assert.equal(view.href, "http://127.0.0.1:8000/documents/doc-one/view");
+    assert.equal(view.target, "_blank");
+    assert.equal(view.rel, "noopener noreferrer");
+    assert.equal(view.title, "View document");
+    assert.match(view.attributes["aria-label"], /guide.pdf/);
+    const trash = actions.children[1];
+    assert.equal(trash.title, "Delete document");
+    assert.match(trash.attributes["aria-label"], /Delete guide.pdf/);
+    assert.equal(trash.children[0].attributes["aria-hidden"], "true");
+    assert.equal(trash.textContent, "");
+    assert.match(trash.children[0].innerHTML, /^<svg /);
+    assert.match(view.children[0].innerHTML, /^<svg /);
     assert.equal(ui.document.documentElement.dataset.theme, "dark");
     for (const theme of ["light", "dark", "auto"]) {
         element("themeSelect").value = theme;
@@ -94,7 +112,7 @@ async function createUi(storedTheme = "auto") {
     }
 
     // Delete resets the selected document and refreshes the metadata list.
-    await element("documentList").children[0].children[1].events.click();
+    await element("documentList").children[0].children[1].children[1].events.click();
     assert.ok(ui.calls.some(call => call.options.method === "DELETE" && call.url.endsWith("/doc-one")));
     assert.equal(element("questionPanel").hidden, true);
     assert.equal(element("documentList").children.length, 1);
@@ -109,5 +127,10 @@ async function createUi(storedTheme = "auto") {
     assert.equal(element("currentStage").textContent, "Ready");
     assert.equal(vm.runInContext("currentDocumentId", context), "fresh-upload");
     assert.equal(element("uploadButton").disabled, false);
+    // A fresh backend list excludes an original removed through the Azure portal.
+    ui.setRecords([]);
+    await element("refreshDocuments").events.click();
+    assert.equal(element("documentList").children.length, 0);
+    assert.equal(ui.calls.at(-1).options.cache, "no-store");
     console.log("PASS: automatic list, safe delete/selection reset, theme persistence, all progress stages, failure freeze, question retrieval, and streamed upload regression.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

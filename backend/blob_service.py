@@ -53,6 +53,21 @@ def _document_blob_targets(record, account_url):
     return targets
 
 
+def original_document_exists(record: dict) -> bool:
+    """Check only the original in the configured account and document container."""
+    with BlobServiceClient.from_connection_string(CONNECTION_STRING) as client:
+        container, name = _document_blob_targets(record, client.url)["original"]
+        return client.get_blob_client(container=container, blob=name).exists()
+
+
+def read_original_document(record: dict):
+    """Use backend credentials; never return a storage credential or SAS URL."""
+    with BlobServiceClient.from_connection_string(CONNECTION_STRING) as client:
+        container, name = _document_blob_targets(record, client.url)["original"]
+        content = client.get_blob_client(container=container, blob=name).download_blob().readall()
+        return content, name.rsplit("/", 1)[-1]
+
+
 def delete_document_blobs(record: dict, other_records: list) -> dict:
     """Remove only the original Blob, preserving names shared by other records."""
     with BlobServiceClient.from_connection_string(CONNECTION_STRING) as client:

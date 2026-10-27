@@ -1,18 +1,28 @@
 """Small document list/delete coordinator; no upload or processing changes."""
 
+import logging
 from urllib.parse import urlsplit, urlunsplit
 
 from backend.cosmos_service import list_document_records, get_document_record, delete_document_record
-from backend.blob_service import delete_document_blobs
+from backend.blob_service import delete_document_blobs, original_document_exists, read_original_document
 from backend.search_service import delete_document_chunks
 
 
 PROCESSING_STATUSES = {"Valid", "Extracting", "Chunking", "Embedding", "Indexing"}
+logger = logging.getLogger(__name__)
 
 
 def list_documents():
     documents = []
     for record in list_document_records():
+        try:
+            exists = original_document_exists(record)
+        except (ValueError, KeyError):
+            logger.warning("Skipping document: %r - invalid original Blob location", record.get("document_id"))
+            continue
+        if not exists:
+            logger.info("Skipping stale document: %r - original Blob missing", record["document_id"])
+            continue
         url = record.get("blob_url")
         # Do not expose any SAS token stored in a historical metadata URL.
         if url:
@@ -24,6 +34,13 @@ def list_documents():
             "blob_url": url,
         })
     return sorted(documents, key=lambda item: item["created_at"] or "", reverse=True)
+
+
+def view_document(document_id):
+    record = get_document_record(document_id)
+    if record is None:
+        return None
+    return read_original_document(record)
 
 
 def delete_document(document_id):
