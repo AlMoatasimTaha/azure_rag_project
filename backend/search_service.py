@@ -39,7 +39,7 @@ INTEGER_FIELDS = (
 )
 JSON_FIELDS = ("spans", "bounding_regions", "cells")
 ID_COLLECTION_FIELDS = ("related_table_ids", "related_text_chunk_ids")
-RETRIEVAL_TOP_K = 10
+RETRIEVAL_TOP_K = 4
 RETRIEVAL_FIELDS = (
     "chunk_id", "content", "document_id", "file_name", "chunk_type",
     "page_numbers", "section_heading", "source_blob_url",
@@ -72,13 +72,21 @@ def delete_document_chunks(document_id: str) -> int:
         raise RuntimeError("Search cleanup failed; retry document deletion") from None
 
 
-def search_chunks(question_vector, document_id: str, top_k: int = RETRIEVAL_TOP_K) -> list:
-    """Return vector-ranked chunks from only the supplied document, without vectors.
+def search_chunks(question_vector, document_id: str = None, top_k: int = RETRIEVAL_TOP_K,
+                  *, document_ids: list[str] = None) -> list:
+    """Return vector-ranked chunks from the supplied document scope, without vectors.
 
     This read-only path never creates or changes an index or stored documents.
     """
-    if not isinstance(document_id, str) or not document_id.strip():
-        raise ValueError("document_id must be a nonempty string")
+    if document_ids is None:
+        if not isinstance(document_id, str) or not document_id.strip():
+            raise ValueError("document_id must be a nonempty string")
+        scope_ids = [document_id]
+    else:
+        if document_id is not None or not isinstance(document_ids, list) or any(
+                not isinstance(value, str) or not value.strip() for value in document_ids):
+            raise ValueError("Provide a list of nonempty document IDs or one document_id")
+        scope_ids = list(dict.fromkeys(document_ids))
     if type(top_k) is not int or top_k <= 0:
         raise ValueError("top_k must be a positive integer")
     if not isinstance(question_vector, list) or len(question_vector) != EMBEDDING_DIMENSION:
@@ -89,9 +97,12 @@ def search_chunks(question_vector, document_id: str, top_k: int = RETRIEVAL_TOP_
         valid = False
     if not valid:
         raise ValueError("Question embedding must contain finite numbers")
+    if not scope_ids:
+        return []  # An empty scope must never become an unfiltered index search.
     endpoint, credential, index_name = _configuration()
     # Escape OData string literals so IDs cannot change the filter expression.
-    escaped_id = document_id.strip().replace("'", "''")
+    scope_filter = " or ".join("document_id eq '" + value.strip().replace("'", "''") + "'"
+                               for value in scope_ids)
     query = VectorizedQuery(
         vector=question_vector, k_nearest_neighbors=top_k, fields="content_vector",
     )
@@ -99,7 +110,7 @@ def search_chunks(question_vector, document_id: str, top_k: int = RETRIEVAL_TOP_
         with SearchClient(endpoint=endpoint, credential=credential, index_name=index_name) as client:
             matches = client.search(
                 search_text=None, vector_queries=[query],
-                filter=f"document_id eq '{escaped_id}'", vector_filter_mode="preFilter",
+                filter=scope_filter, vector_filter_mode="preFilter",
                 select=list(RETRIEVAL_FIELDS), top=top_k,
             )
             return [

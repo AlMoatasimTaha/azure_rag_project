@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QDS | Document workspace</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
     <header class="topbar">
@@ -12,6 +12,7 @@
             <span class="logo-surface"><img src="images/qds-logo.png?v=2" alt="QDS" width="132" height="57"></span>
             <span class="brand-caption">Document workspace</span>
         </a>
+        <div class="topbar-actions">
         <label class="theme-control" for="themeSelect">Theme
             <select id="themeSelect">
                 <option value="light">Light</option>
@@ -19,30 +20,54 @@
                 <option value="auto" selected>Auto</option>
             </select>
         </label>
+        <button id="notificationButton" class="notification-bell" type="button" title="Notifications" aria-label="Notifications" aria-expanded="false" aria-controls="notificationPanel">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+            <span id="notificationCount" class="notification-count" hidden>0</span>
+        </button>
+        </div>
     </header>
+    <section id="notificationPanel" class="notification-panel" aria-labelledby="notificationsHeading" hidden>
+        <div class="sidebar-heading"><h2 id="notificationsHeading">Notifications</h2><button id="closeNotifications" class="quiet" type="button">Close</button></div>
+        <p class="hint">Recent document operations and questions, saved in this browser. Answers and document contents are not saved. Select a message to mark it as read.</p>
+        <p id="notificationsEmpty" class="hint">No notifications yet.</p>
+        <ul id="notificationList" class="notification-list"></ul>
+        <button id="clearNotifications" class="quiet" type="button">Clear notifications</button>
+    </section>
+    <div id="notificationToast" class="toast-stack" aria-label="Notifications" hidden></div>
     <div class="workspace">
-        <aside class="sidebar" aria-labelledby="documentsHeading">
-            <div class="sidebar-heading">
-                <h2 id="documentsHeading">Documents</h2>
-                <button id="refreshDocuments" class="quiet" type="button">Refresh</button>
-            </div>
-            <p class="hint">Select a ready document to ask a question.</p>
-            <p id="documentsStatus" role="status" aria-live="polite"></p>
-            <ul id="documentList" class="document-list"></ul>
+        <aside class="sidebar" aria-label="Workspace navigation and question history">
+            <nav class="workspace-nav" aria-label="Workspace pages">
+                <button id="documentsNav" type="button" aria-current="page">Documents</button>
+                <button id="questionsNav" type="button">Ask &amp; answers</button>
+            </nav>
+            <section id="historySidebar" hidden aria-labelledby="historyHeading">
+                <div class="sidebar-heading"><h2 id="historyHeading">History</h2><button id="newQuestion" class="quiet" type="button">New question</button></div>
+                <p class="hint">Questions from this browser session. Each question is answered independently.</p>
+                <p id="historyEmpty" class="hint">Your answered questions will appear here.</p>
+                <ul id="historyList" class="document-list"></ul>
+            </section>
         </aside>
-        <main class="main-content">
+        <main id="mainContent" class="main-content">
+            <div id="documentsPage">
             <div class="page-heading">
                 <p class="eyebrow">QDS KNOWLEDGE WORKSPACE</p>
                 <h1>Your documents, ready to explore.</h1>
                 <p class="intro">Upload a document, follow its progress, and find relevant passages.</p>
             </div>
             <section class="card" aria-labelledby="uploadHeading">
-                <h2 id="uploadHeading">Upload a document</h2>
-                <p class="hint">PDF or DOCX · Maximum file size: 10 MB</p>
-                <label class="file-label" for="fileInput">Choose your document</label>
-                <input type="file" id="fileInput" accept=".pdf,.docx">
+                <h2 id="uploadHeading">Upload documents</h2>
+                <ul class="hint">
+                    <li>You can upload up to 20 documents.</li>
+                    <li>Each document must be 10 MB or less</li>
+                    <li>Each document must contain no more than 2 pages.</li>
+                </ul>
+                <p class="hint">PDFs over 2 pages are rejected. For DOCX, convert to PDF so its page count can be verified.</p>
+                <p id="uploadCapacity" class="hint" role="status">Checking document capacity…</p>
+                <label class="file-label" for="fileInput">Choose your documents</label>
+                <input type="file" id="fileInput" accept=".pdf,.docx" multiple>
                 <p id="selectedFile" class="hint"></p>
                 <button id="uploadButton" type="button">Upload</button>
+                <p class="hint">Files process one at a time. Progress shows completed pipeline steps, not elapsed time. Finished files leave this queue; their results appear in the notification bell. Validate → Upload → Extract → Chunk → Embed → Index → Ready.</p>
                 <div id="processingProgress" class="progress-panel" hidden>
                     <div class="progress-heading">
                         <span id="currentStage" role="status" aria-live="polite">Upload</span>
@@ -51,20 +76,58 @@
                     <progress id="uploadProgress" max="100" value="15" aria-label="Document processing" aria-describedby="currentStage">15%</progress>
                 </div>
                 <p id="result" role="status" aria-live="polite"></p>
+                <ul id="uploadResults" class="upload-queue" aria-label="Upload results" aria-live="polite"></ul>
             </section>
-            <section id="questionPanel" class="card" hidden>
+            <section class="card" aria-labelledby="documentsHeading">
+                <div class="sidebar-heading"><h2 id="documentsHeading">Your documents</h2><button id="refreshDocuments" class="quiet" type="button">Refresh</button></div>
+                <p class="hint">View or delete a document, or select a Ready document to ask about it.</p>
+                <div class="bulk-actions" role="group" aria-label="Bulk document deletion">
+                    <label><input id="selectAllDocuments" type="checkbox"> Select All</label>
+                    <span id="selectionCount" role="status">0 documents selected</span>
+                    <button id="viewSelected" class="quiet" type="button" disabled>View Selected</button>
+                    <button id="deleteSelected" class="quiet delete-button" type="button" disabled>Delete Selected</button>
+                </div>
+                <p id="documentsStatus" role="status" aria-live="polite"></p>
+                <ul id="documentList" class="document-list library-list"></ul>
+            </section>
+            </div>
+            <div id="questionsPage" hidden>
+            <div class="page-heading"><p class="eyebrow">QDS KNOWLEDGE WORKSPACE</p><h1>Ask your documents.</h1><p class="intro">Find answers grounded in the documents you added.</p></div>
+            <section id="questionPanel" class="card">
                 <form id="questionForm">
-                    <h2>Find relevant passages</h2>
-                    <p id="activeDocument" class="hint"></p>
-                    <label for="questionInput">Question about this document</label>
-                    <textarea id="questionInput" rows="3" placeholder="What would you like to find?" required></textarea>
+                    <h2>Ask a question</h2>
+                    <label for="answerScope">Answer from</label>
+                    <select id="answerScope"><option value="all">All Ready documents</option></select>
+                    <p id="scopeStatus" class="hint">Answers search all Ready documents you have uploaded.</p>
+                    <p id="activeDocument" class="hint">Answering from all Ready documents.</p>
+                    <label for="questionInput">Your question</label>
+                    <textarea id="questionInput" rows="3" placeholder="What would you like to know?"></textarea>
                     <button id="askButton" type="submit">Ask</button>
                     <p id="retrievalStatus" role="status" aria-live="polite"></p>
-                    <ol id="retrievalResults" class="retrieval-results"></ol>
+                    <section id="answerPanel" aria-labelledby="answerHeading" hidden>
+                        <h2 id="answerHeading">Answer</h2>
+                        <p id="answerText" class="answer-text"></p>
+                    </section>
+                    <details><summary>Retrieved passages (debugging)</summary><ol id="retrievalResults" class="retrieval-results"></ol></details>
                 </form>
             </section>
+            </div>
         </main>
     </div>
-    <script src="app.js?v=9"></script>
+    <dialog id="documentViewer" class="document-viewer" aria-labelledby="viewerHeading">
+        <div class="sidebar-heading"><h2 id="viewerHeading">Selected documents</h2><button id="closeViewer" class="quiet" type="button">Close viewer</button></div>
+        <label for="viewerDocument">Document</label>
+        <select id="viewerDocument"></select>
+        <p id="viewerStatus" role="status"></p>
+        <iframe id="viewerFrame" title="Selected document preview" hidden></iframe>
+    </dialog>
+    <dialog id="deleteConfirmation" aria-labelledby="deleteConfirmationHeading">
+        <form method="dialog">
+            <h2 id="deleteConfirmationHeading">Delete selected documents?</h2>
+            <p id="deleteConfirmationText"></p>
+            <div class="bulk-actions"><button class="quiet" value="cancel" autofocus>Cancel</button><button class="delete-button" value="confirm">Confirm Delete</button></div>
+        </form>
+    </dialog>
+    <script src="app.js?v=21"></script>
 </body>
 </html>

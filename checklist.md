@@ -410,13 +410,14 @@ Overall: PASS
 - [x] Perform vector search
 - [x] Use Top-K retrieval
 - [x] Test Top-K successfully
+- [x] Complete Top-K evaluation and select final retrieval value: TOP_K = 4
 - [x] Confirm retrieved chunks are ranked by relevance
 - [x] Confirm correct sections rank first in real tests
 
-Current testing setting:
+Final selected retrieval setting:
 
-- Top-K = 10 for testing
-- Return up to 10 chunks
+- TOP_K = 4
+- Return up to 4 chunks
 - If document has fewer chunks, return only available chunks
 
 ## Frontend
@@ -499,47 +500,60 @@ Definition of Done:
 Day 4 Status: COMPLETE
 
 Next:
-Day 5 — LLM Answer Generation
+Day 5 — LLM Generation and Grounded RAG
 
-- [ ] Use retrieved chunks as context
-- [ ] Send question + retrieved context to LLM
-- [ ] Generate final grounded answer
-- [ ] Add citations/source references
+See Day 5 for generation tasks. Citations/source references remain Day 6 work.
 
 ---
 
-# DAY 5 — RAG Question Answering
+# DAY 5 — LLM Generation and Grounded RAG
 
-Create later: `backend/rag_service.py`.
+## Completed
 
-Create: `POST /ask`.
+- [x] Understand the role of the generation LLM
+- [x] Define model-selection criteria
+- [x] Compare suitable generation models
+- [x] Select GPT-5 mini
+- [x] Deploy/access GPT-5 mini in Microsoft Foundry
+- [x] Test GPT-5 mini in Foundry Playground
+- [x] Store GPT-5 mini configuration in environment variables
+- [x] Configure/install the OpenAI Python SDK
+- [x] Test Python backend -> GPT-5 mini connection
+- [x] Send a simple generation request from Python to GPT-5 mini successfully
 
-Flow:
+Deployment and manual connection items reflect the project owner's progress report.
+The generation service, prompt, context formatting, `/ask` integration, and frontend
+answer display now exist in code. Full answer-quality validation remains unfinished.
 
-```text
-React
-→ FastAPI
-→ Azure AI Search
-→ relevant chunks
-→ Azure OpenAI
-→ grounded answer
-→ React
-```
+## Implementation and remaining validation
 
-- [ ] Create backend/rag_service.py
-- [ ] Create POST /ask
-- [ ] Connect retrieved context to an Azure OpenAI chat deployment
-- [ ] Connect React question form to POST /ask
-
-Prompt behavior:
-
-- [ ] Answer only using retrieved context
-- [ ] Do not invent answers
+- [x] Design the RAG system prompt
+- [x] Define how retrieved chunks are formatted into LLM context
+- [ ] Manually test context + question -> GPT-5 mini -> answer
+- [ ] Test a question whose answer exists in the supplied context
+- [ ] Test a question whose answer does not exist in the supplied context
+- [ ] Verify GPT-5 mini does not invent unsupported information
+- [x] Create `backend/llm_service.py` for generation logic
+- [x] Connect existing TOP_K = 4 retrieval results to the generation service
+- [x] Build Question -> Retrieval -> Top-4 -> Context -> GPT-5 mini -> Answer
+- [x] Update existing POST /ask to return the generated grounded answer
+- [x] Connect the existing website question flow to display the generated grounded answer
+- [x] Instruct the model to answer only using retrieved context (quality validation remains below)
 - [ ] If evidence is missing, say there is not enough information in the uploaded documents
+- [ ] Test the complete generation pipeline using the project's different document types
+- [ ] Test simple factual questions
+- [ ] Test questions requiring information from multiple retrieved chunks
+- [ ] Test irrelevant/out-of-document questions
+- [ ] Verify answer quality, groundedness, and response time
 
 Definition of Done:
 
 - [ ] User asks a question from the website and gets a grounded answer
+- [ ] Mark Day 5 complete only after the full generation pipeline is working
+
+Day 5 Status: IN PROGRESS
+
+Citations, source metadata, page numbers, highlights, frontend citation display, and final RAG evaluation remain separate Day 6 work.
 
 ---
 
@@ -552,9 +566,12 @@ Source: file.pdf
 Page: 3
 ```
 
+- [ ] Return source metadata and references for citations
 - [ ] Return source filename
 - [ ] Return page number
 - [ ] Show citation in React
+- [ ] Add document highlights linked to answer sources
+- [ ] Run final RAG evaluation covering answers, citations, source metadata, page numbers, and highlights
 - [ ] Test question where answer does not exist
 - [ ] Show insufficient-evidence response
 - [ ] Keep frontend clean and simple
@@ -661,4 +678,3 @@ Do not implement these during MVP unless all required work is already complete:
 - [ ] Terraform/Bicep
 - [ ] Advanced evaluation
 - [ ] Advanced UI
-    

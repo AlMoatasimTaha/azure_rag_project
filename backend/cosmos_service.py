@@ -34,7 +34,7 @@ def save_document_result(record: dict):
 def list_document_records() -> list:
     """Read metadata only; keep internal Cosmos fields out of API responses."""
     return list(container.query_items(
-        query="SELECT * FROM c WHERE IS_DEFINED(c.document_id)",
+        query="SELECT * FROM c WHERE IS_DEFINED(c.document_id) AND c.document_id != '__upload_capacity__'",
         enable_cross_partition_query=True,
     ))
 

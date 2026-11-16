@@ -161,6 +161,114 @@ def test_foundry_embedding():
         )
 
 
+def test_gpt5_mini():
+    try:
+        endpoint, key, deployment = configuration(
+            "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
+            "AZURE_OPENAI_DEPLOYMENT"
+        )
+
+        if not endpoint.rstrip("/").endswith("/openai/v1"):
+            raise ConnectionCheckError(
+                "AZURE_OPENAI_ENDPOINT must be the base v1 URL ending in /openai/v1/."
+            )
+        # Import here so a missing SDK does not prevent the other checks running.
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ConnectionCheckError(
+                "The openai Python package is missing or incompatible; "
+                "install a version supporting client.responses.create()."
+            ) from None
+
+        with OpenAI(api_key=key, base_url=endpoint, timeout=60.0, max_retries=0) as client:
+            if not callable(getattr(getattr(client, "responses", None), "create", None)):
+                raise ConnectionCheckError(
+                    "The installed openai package does not support client.responses.create(); "
+                    "a newer SDK is required."
+                )
+            response = client.responses.create(
+                model=deployment,
+                input="What is Azure cloud? Answer in one short sentence.",
+            )
+            answer = getattr(response, "output_text", None)
+            if not isinstance(answer, str) or not answer.strip():
+                raise ConnectionCheckError(
+                    "Azure OpenAI returned no output_text; check SDK support, "
+                    "content filtering and response completion status."
+                )
+
+        print("[OK] GPT-5 mini connection successful")
+        print(f"  Response: {answer.strip().replace(key, '[REDACTED]')}")
+        return True
+    except Exception as error:
+        print("[FAIL] GPT-5 mini connection failed")
+        if isinstance(error, ConnectionCheckError):
+            print(f"  Error: {error}")
+        else:
+            # Do not print raw exceptions: they can contain URLs or credentials.
+            status = getattr(error, "status_code", None)
+            if status is None:
+                status = getattr(getattr(error, "response", None), "status_code", None)
+            if status in (401, 403):
+                print(f"  Error: Authentication/access error (HTTP {status}); check the API key and resource permissions.")
+            elif status == 404:
+                print(
+                    "  Error: HTTP 404; check the base v1 endpoint and that "
+                    "AZURE_OPENAI_DEPLOYMENT exists in the same resource and supports the Responses API."
+                )
+            elif isinstance(status, int):
+                print(f"  Error: API error (HTTP {status}); check request support, quota and service availability.")
+            else:
+                print(f"  Error: {type(error).__name__}; check SDK compatibility, endpoint format and network access.")
+        return False
+
+
+def test_gpt5_judge():
+    """Check the separate Judge deployment without using RAG credentials."""
+    try:
+        endpoint, key, model = configuration(
+            "JUDGE_OPENAI_ENDPOINT", "JUDGE_OPENAI_API_KEY", "JUDGE_OPENAI_MODEL"
+        )
+        if not endpoint.rstrip("/").endswith("/openai/v1"):
+            raise ConnectionCheckError(
+                "JUDGE_OPENAI_ENDPOINT must be the base v1 URL ending in /openai/v1/."
+            )
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ConnectionCheckError(
+                "Install an openai SDK supporting client.responses.create()."
+            ) from None
+
+        with OpenAI(api_key=key, base_url=endpoint, timeout=60.0, max_retries=0) as client:
+            response = client.responses.create(
+                model=model,
+                input="You are the RAG Judge. Reply exactly: JUDGE CONNECTION SUCCESSFUL",
+                reasoning={"effort": "minimal"},
+                max_output_tokens=128,
+            )
+        answer = getattr(response, "output_text", None)
+        if not isinstance(answer, str) or answer.strip() != "JUDGE CONNECTION SUCCESSFUL":
+            raise ConnectionCheckError("The Judge did not return the expected confirmation text.")
+        print("[OK] GPT-5 Judge connection successful")
+        print(f"  Response: {answer.strip().replace(key, '[REDACTED]')}")
+        return True
+    except Exception as error:
+        print("[FAIL] GPT-5 Judge connection failed")
+        if isinstance(error, ConnectionCheckError):
+            print(f"  Error: {error}")
+        else:
+            # Never print raw SDK exceptions, response bodies or credentials.
+            status = getattr(error, "status_code", None)
+            detail = f"HTTP {status}" if isinstance(status, int) else type(error).__name__
+            print(
+                f"  Error: {detail}; check JUDGE_OPENAI_ENDPOINT, JUDGE_OPENAI_API_KEY, "
+                "JUDGE_OPENAI_MODEL, deployment permissions, quota and network access."
+            )
+        return False
+
+
 def test_azure_ai_search():
     try:
         endpoint, key, index_name = configuration(
@@ -188,6 +296,8 @@ def main():
         test_cosmos_db(),
         test_document_intelligence(),
         test_foundry_embedding(),
+        test_gpt5_mini(),
+        test_gpt5_judge(),
         test_azure_ai_search(),
     ]
     success = all(results)

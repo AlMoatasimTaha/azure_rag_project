@@ -43,6 +43,9 @@ def generate_embedding(text: str) -> list[float]:
         raise ValueError("Missing embedding configuration: " + ", ".join(missing))
 
     endpoint = config["AZURE_OPENAI_ENDPOINT"].rstrip("/")
+    # The generation client uses a v1 base URL; this request uses the deployment API.
+    if endpoint.endswith("/openai/v1"):
+        endpoint = endpoint.removesuffix("/openai/v1")
     deployment = quote(config["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"], safe="")
     url = f"{endpoint}/openai/deployments/{deployment}/embeddings"
     try:
