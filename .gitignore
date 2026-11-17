@@ -61,3 +61,5 @@ testing/llm_evaluation/questions.json
 testing/llm_evaluation/results.json
 testing/llm_evaluation/judgments.json
 testing/llm_evaluation/llm_response_report.html
+testing/top_k/top_k_report.html
+tests/rag_test_results.md

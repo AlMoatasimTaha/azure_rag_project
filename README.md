@@ -28,6 +28,8 @@ Cosmos DB, Document Intelligence, Azure AI Search, and Azure OpenAI.
   answers and retrieved document contents are excluded. Filenames and questions
   remain on that browser until history is cleared.
 
+## Phase 2 multi-document retrieval and Q&A
+
 The existing question flow retrieves up to four chunks from all Ready documents
 or one selected Ready document and sends their context to Azure OpenAI for an
 answer. Question and answer history stays in memory for the current page session.
@@ -75,3 +77,18 @@ sample comparison is optional and skips when local sample extractions are absent
 `backend/test_connections.py` contacts live Azure services and is intentionally
 separate from offline unit validation. Local evaluation scripts, experiments,
 documents, and generated results are outside this Phase 1 commit.
+
+The Phase 1 and Phase 2 checkpoint also includes `testing/top_k/` comparison
+scripts and offline tests, plus the authored question banks and optional local
+Q&A runner under `tests/`. Validate Top-K without Azure calls:
+
+```powershell
+.venv\Scripts\python.exe -m unittest testing.top_k.test_evaluate_top_k
+.venv\Scripts\python.exe testing/top_k/evaluate_top_k.py --validate-only
+```
+
+Top-K plots require the separate `testing/top_k/requirements.txt`. Full captured
+corpora, answers, reports, and uploaded PDFs are intentionally excluded. Running
+the Q&A runner or the Top-K collector without `--validate-only` contacts Azure
+and can incur charges. Phase 3 citation and source-reference implementation is
+not part of this checkpoint.

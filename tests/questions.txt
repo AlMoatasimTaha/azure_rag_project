@@ -1,0 +1,20 @@
+What is the difference between AI, machine learning, deep learning, and generative AI?
+What are the four ways to describe an AI system?
+In the example with 1,000 support messages, what are urgent-class precision and recall?
+What four AI architectures are compared for the bilingual internal knowledge assistant?
+What should a beginner learn during week two of the first-month AI study plan?
+What are the focus and assessment requirements for weeks 7–8 of the twelve-week curriculum?
+What does Practice Lab One teach about data leakage?
+What must be demonstrated at Review Gate Two in week six of the research apprenticeship?
+What are the three initial tool choices recommended for someone starting AI?
+What tools are recommended for a minimal AI project workflow?
+Compare the four-week beginner AI study plan with the twelve-week AI curriculum.
+How do the AI models guide and the practice workbook recommend preventing data leakage?
+How do retrieval-augmented generation and fine-tuning differ, and how should a retrieval-based architecture be evaluated?
+Compare the beginner AI toolkit with the medium-level AI project workflow.
+How does the twelve-week AI curriculum differ from the sixteen-week research apprenticeship?
+What is the exact salary of a machine learning engineer at Google in Qatar in November 2026?
+What is the current share price of NVIDIA?
+How many students enrolled in the Stanford Machine Learning Specialization during 2026?
+What is recommended during weeks 11–12 of the AI curriculum, and what percentage of students find jobs after completing it?
+Which tools does the beginner toolkit recommend for running Python and saving projects, and how many people used these tools in 2026?
