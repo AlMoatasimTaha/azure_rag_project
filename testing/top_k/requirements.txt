@@ -1,2 +1,0 @@
-# Install locally to keep the production environment and requirements unchanged.
-matplotlib==3.11.2

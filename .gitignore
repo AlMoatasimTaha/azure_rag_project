@@ -63,3 +63,7 @@ testing/llm_evaluation/judgments.json
 testing/llm_evaluation/llm_response_report.html
 testing/top_k/top_k_report.html
 tests/rag_test_results.md
+
+# Personal testing tools and datasets stay on this computer
+/testing/
+/tests/
